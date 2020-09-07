@@ -9,8 +9,7 @@ import gym
 import numpy as np
 from gym.spaces import Box, Discrete
 
-from gym_coach_vss.fira_parser import FiraParser
-from gym_coach_vss.Game import History, Stats
+#from Game import History, Stats
 import random
 
 BIN_PATH = '/'.join(os.path.abspath(__file__).split('/')
@@ -18,9 +17,9 @@ BIN_PATH = '/'.join(os.path.abspath(__file__).split('/')
 
 
 w_grad_ball_potential = (0.08, 1)
-
-
-class Env(gym.Env):
+# right, left, up, down, bigger, smalller, fatter, taller , trigger
+# Active Object Localization with Deep Reinforcement Learning
+class Ol2015_Env(gym.Env):
 
     def __init__(self, qtde_steps=60, history_size=60,
                  update_interval=15, render=False, 
@@ -47,7 +46,7 @@ class Env(gym.Env):
                                      shape=(self.window_size, 30),
                                      dtype=np.float32) # Change it
         if self.is_discrete:
-            self.action_space = Discrete(27)
+            self.action_space = Discrete(9)
         else:
             self.action_space = Box(low=-1.0, high=1.0,
                                     shape=(3,),
@@ -87,11 +86,6 @@ class Env(gym.Env):
         is_first = not (self.fira and self.agent_yellow_process)
         self.write_log(is_first)
 
-        if not is_first:
-            print(f"Coach {self.goal_prev_yellow}\
-                 x {self.goal_prev_blue} {self.versus}")
-            self.stop()
-
         self.start()
         self.history = History(self.history_size)
         state = self._receive_state(reset=True)
@@ -114,7 +108,7 @@ class Env(gym.Env):
         self.done = False
         reward = 0
         out_str = struct.pack('i', int(action))
-        self.sw_conn.sendto(out_str, ('0.0.0.0', 4098))
+        
         for _ in range(self.qtde_steps):
             state = self._receive_state()
             reward += self.compute_rewards()

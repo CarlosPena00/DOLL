@@ -13,6 +13,7 @@ import torch.optim as optim
 import pathlib
 import wandb
 from gym_coach_vss import CoachEnv
+from models import Qnet, ConvQnet
 
 
 random.seed(42)
@@ -50,30 +51,6 @@ class ReplayBuffer():
     def size(self):
         return len(self.buffer)
 
-class Qnet(nn.Module):
-    def __init__(self, num_input, actions):
-        super(Qnet, self).__init__()
-        self.actions = actions
-        self.num_input = num_input
-        self.fc1 = nn.Linear(num_input, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, actions)
-
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-    def sample_action(self, obs, epsilon):
-        obs = torch.from_numpy(obs).float().to(device)
-        obs = obs.view(1, self.num_input)
-        out = self.forward(obs)
-        coin = random.random()
-        if coin < epsilon:
-            return random.randint(0, self.actions-1)
-        else:
-            return out.argmax().item()
 
 class Agent:
     def __init__(self, num_input, actions, exp_name='zero', 
