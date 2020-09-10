@@ -97,3 +97,5 @@ class History:
         self.cont_states.append([action, iou])
 
         self.num_insertions += 1
+        
+        

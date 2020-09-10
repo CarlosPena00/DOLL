@@ -72,10 +72,8 @@ class Ol2015_Env(gym.Env):
         pass
 
     def start(self):
-        input, target = iter(data_loader).next()
-        shape = input.shape
-        #pred  = [int(shape[0] * 0.33), int(shape[0] * 0.66), int(shape[1] * 0.33), int(shape[1] * 0.66)] 
-        self.history.start(pred)
+        self.input, self.target = iter(self.data_loader).next()
+        self.history.start(self.target)
 
         
     def stop(self):
@@ -125,7 +123,7 @@ class Ol2015_Env(gym.Env):
 
         self.done = (action == 8)
         
-        state  = self._receive_state(action)
+        state  = (self._receive_state(action))
         reward = self.compute_rewards()
         
         return state, reward, self.done, self.history

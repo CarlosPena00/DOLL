@@ -15,7 +15,7 @@ class MixNet(nn.Module):
     """Based on Active Object Localization with Deep Reinforcement Learning
        With squeezenet1_1
     """
-    def __init__(self, input_shape, actions):
+    def __init__(self, input_shape=(224, 224), actions):
         super(MixNet, self).__init__()
         
         self.features = tmodels.squeezenet1_1(pretrained=True).features 
