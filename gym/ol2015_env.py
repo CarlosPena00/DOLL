@@ -11,13 +11,13 @@ from gym.spaces import Box, Discrete
 
 #from Game import History, Stats
 import random
+import VOC
 
 BIN_PATH = '/'.join(os.path.abspath(__file__).split('/')
                     [:-1]) + '/bin/'
 
 
 w_grad_ball_potential = (0.08, 1)
-# right, left, up, down, bigger, smalller, fatter, taller , trigger
 # Active Object Localization with Deep Reinforcement Learning
 class Ol2015_Env(gym.Env):
 
@@ -51,6 +51,16 @@ class Ol2015_Env(gym.Env):
             self.action_space = Box(low=-1.0, high=1.0,
                                     shape=(3,),
                                     dtype=np.float32) # Change it
+            
+        transforms_set = VOC.Compose([
+                        VOC.ToSegmentation(),
+                        #ConvertLabel(),
+                        VOC.ToTensor()]
+                    )
+
+        dataset          = VOC.VOCDetection(r'../Datasets/', transforms=transforms_set)
+        self.data_loader = torch.utils.data.DataLoader(dataset, batch_size=None,
+                                                    shuffle=True, num_workers=0)
 
     def start_agents(self):
         pass
@@ -62,24 +72,29 @@ class Ol2015_Env(gym.Env):
         pass
 
     def start(self):
-        self.start_agents()
+        input, target = iter(data_loader).next()
+        shape = input.shape
+        #pred  = [int(shape[0] * 0.33), int(shape[0] * 0.66), int(shape[1] * 0.33), int(shape[1] * 0.66)] 
+        self.history.start(pred)
+
         
     def stop(self):
         pass
+    
 
-    def _receive_state(self, reset=False):
-        #data = ? update here
-        data = 0
-        self.history.update(data, reset=reset)
+    def _receive_state(self, action):
+        
+        self.history.update(action, reset=False)
         state = self.history.cont_states
         state = np.array(state)
-        state = state[self.update_interval-1::self.update_interval]
         return state
 
     def write_log(self, is_first=False):
         with open(self.logger_path, 'a') as log:
             now = datetime.now()
-            log.write(f"{now}\n")
+            iou = self.history.cont_states[-1][1]
+            steps = self.history.num_insertions
+            log.write(f"{iou},{steps},{now}\n")
             
     def reset(self):
         self.broken = False
@@ -99,26 +114,20 @@ class Ol2015_Env(gym.Env):
         else:
             return value
 
-    def compute_rewards(self):
-        reward = 0.0
-
-        return reward
+    def compute_rewards(self, gt, proposed):
+        
+        r_iou   = self.history.cont_states[-1][1] - self.history.cont_states[-2][1]
+        r_steps = self.history.num_insertions * (0.001)
+        return r_iou - r_steps
 
     def step(self, action):
-        self.done = False
-        reward = 0
-        out_str = struct.pack('i', int(action))
-        
-        for _ in range(self.qtde_steps):
-            state = self._receive_state()
-            reward += self.compute_rewards()
-            if not self.check_agents():
-                self.broken = True
-                self.done = True
-                self.history.time = self.prev_time = 0.0
+        # right, left, up, down, bigger, smalller, fatter, taller , trigger
 
-            if self.done:
-                break
+        self.done = (action == 8)
+        
+        state  = self._receive_state(action)
+        reward = self.compute_rewards()
+        
         return state, reward, self.done, self.history
 
     def render(self, mode='human'):
