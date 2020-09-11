@@ -16,6 +16,9 @@ cls2num = {'aeroplane':0, 'bicycle':1, 'bird':2, 'boat':3, 'bottle':4, 'bus':5,
            'motorbike':13, 'person':14, 'pottedplant':15, 'sheep':16, 'sofa':17, 
            'train':18, 'tvmonitor':19}
 
+normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225])
+
 # Note: Copy from Pytorch
 DATASET_YEAR_DICT = {
     '2012': {
@@ -203,7 +206,9 @@ class Compose():
         for t in self.transforms:
             img, labels = t(img, labels)
         return img, labels
-    
+
+
+        
 class ToTensor():
     def __call__(self, src, label):
         src = src.transpose(2, 0, 1)/255
