@@ -19,7 +19,7 @@ random.seed(42)
 # Hyperparameters
 learning_rate = 0.0005
 gamma = 0.94  # 0.9
-buffer_limit = 500_000
+buffer_limit = 5_000
 batch_size = 32
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -176,7 +176,8 @@ def main(load_model=False, test=False):
                 elapsed_steps += 1
                 epi_steps     += 1
                 if done:
-                    print('Reset')
+                    pass
+                    #print('Reset')
 
             if agent.memory.size() > batch_size and not test:
                 losses = agent.train(n_epi)
@@ -186,11 +187,13 @@ def main(load_model=False, test=False):
                 
 
             if not test and not env.broken:
-                goal_diff = env.goal_prev_yellow - env.goal_prev_blue
+                IOU   = env.history.hist_iou[-1]
+                N_ins = env.history.num_insertions
+                print(f"{n_epi:03d}| Score:{score:0.3f} | IOU: {IOU:0.3f} | N: {N_ins:03d}")
                 wandb.log({'Rewards/total': score,
                            'Loss/epsilon': agent.epsilon,
-                           'Rewards/IOU': env.num_penalties,
-                           'Rewards/N': env.num_atk_faults
+                           'Rewards/IOU': IOU,
+                           'Rewards/N': N_ins
                            }, step=n_epi)
         env.close()
     except Exception as e:

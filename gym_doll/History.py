@@ -21,11 +21,9 @@ class Stats:
 class History:
     def __init__(self, MAX, alfa=0.2, image_size=(224, 224), num_action=9):
         
-        self.image_size=image_size
-
-        self.MAX = MAX
-        self.num_action = num_action
-        
+        self.image_size  = image_size
+        self.MAX         = MAX
+        self.num_action  = num_action
         self.cont_states = collections.deque(maxlen=MAX)
         self.disc_states = collections.deque(maxlen=MAX)
         self.hist_iou    = collections.deque(maxlen=MAX)
@@ -74,6 +72,13 @@ class History:
         self.bbox[1] = int(min(self.bbox[1], self.shape[0]-1))
         self.bbox[2] = int(max(self.bbox[2], 0))
         self.bbox[3] = int(min(self.bbox[3], self.shape[1]-1))
+        if self.bbox[0] == self.bbox[1]:
+            self.bbox[0] = (max(self.bbox[0]-1, 0))
+            self.bbox[1] = (min(self.bbox[1]+1, self.shape[0]-1))
+        if self.bbox[2] == self.bbox[3]:
+            self.bbox[2] = max(self.bbox[2]-1, 0)
+            self.bbox[3] = min(self.bbox[3]+1, self.shape[1]-1)
+                
         
     def change_bbox(self, action):
         # right, left, up, down, bigger, smalller, fatter, taller , trigger
@@ -115,7 +120,7 @@ class History:
 
     def get_features(self):
         # Batch, Chanel, Height, Width
-        roi = self.input[:, :, :self.bbox[0]:self.bbox[1], self.bbox[2]:self.bbox[3]]
+        roi = self.input[:, :, self.bbox[0]:self.bbox[1], self.bbox[2]:self.bbox[3]]
         roi = F.interpolate(roi, size=self.image_size[0])
         with torch.no_grad():
             features = self.features(roi)

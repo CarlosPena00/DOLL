@@ -30,21 +30,21 @@ class Ol2015_Env(gym.Env):
         super(Ol2015_Env, self).__init__()
         np.random.seed(2020)
 
-        self.do_render = render
-        self.history = History(history_size)
+        self.do_render    = render
+        self.history      = History(history_size)
         self.history_size = history_size
-        self.time_limit = (5 * 60 * 1000) #Change
-        self.is_discrete = is_discrete
+        self.time_limit   = (5 * 60 * 1000) #Change
+        self.is_discrete  = is_discrete
         
-        self.done = False
+        self.done   = False
         self.broken = False
         
-        self.logger_path = logger_path
+        self.logger_path     = logger_path
         self.update_interval = update_interval
-        self.window_size = (history_size//update_interval)
+        self.window_size     = (history_size//update_interval)
 
         self.observation_space = Box(low=-1.0, high=1.0,
-                                     shape=(self.window_size, 30),
+                                     shape=(self.window_size, self.history.state_shape),
                                      ) # Change it
         if self.is_discrete:
             self.action_space = Discrete(9)
@@ -59,7 +59,7 @@ class Ol2015_Env(gym.Env):
                         VOC.ToTensor()]
                     )
 
-        dataset          = VOC.VOCDetection(r'../Datasets/', transforms=transforms_set)
+        dataset          = VOC.VOCDetection(r'Datasets/', transforms=transforms_set)
         self.data_loader = torch.utils.data.DataLoader(dataset, batch_size=1,
                                                     shuffle=True, num_workers=0)
 
@@ -113,7 +113,7 @@ class Ol2015_Env(gym.Env):
         else:
             return value
 
-    def compute_rewards(self, gt, proposed):
+    def compute_rewards(self):
         
         self.r_iou   = self.history.hist_iou[-1] - self.history.hist_iou[-2]
         self.r_steps = self.history.num_insertions * (0.001)
