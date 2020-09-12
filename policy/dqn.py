@@ -12,9 +12,8 @@ import torch.optim as optim
 
 import pathlib
 import wandb
-from gym_coach_vss import CoachEnv
-from models import Qnet, ConvQnet
-
+from gym_doll import Ol2015_Env
+from models import Qnet, ConvQnet, device
 
 random.seed(42)
 # Hyperparameters
@@ -145,11 +144,11 @@ class Agent:
             self.target_model.load_state_dict(self.model.state_dict())
 
 
-def main(load_model=False, test=False, use_render=False):
+def main(load_model=False, test=False):
     try:
         if not test:
             wandb.init(name="DOLL-DQN", project="DOLL")
-        env      = gym.make('DOLL-v0', render=use_render)
+        env      = gym.make('DOLL-v0')
         n_inputs = env.observation_space.shape[0] * \
             env.observation_space.shape[1]
         
@@ -190,9 +189,8 @@ def main(load_model=False, test=False, use_render=False):
                 goal_diff = env.goal_prev_yellow - env.goal_prev_blue
                 wandb.log({'Rewards/total': score,
                            'Loss/epsilon': agent.epsilon,
-                           'Rewards/goal_diff': goal_diff,
-                           'Rewards/num_penalties': env.num_penalties,
-                           'Rewards/num_atk_faults': env.num_atk_faults
+                           'Rewards/IOU': env.num_penalties,
+                           'Rewards/N': env.num_atk_faults
                            }, step=n_epi)
         env.close()
     except Exception as e:
@@ -215,4 +213,4 @@ if __name__ == '__main__':
     if not os.path.exists('./models'):
         os.makedirs('models')
 
-    main(load_model=ARGS.load, test=ARGS.test, use_render=ARGS.render)
+    main(load_model=ARGS.load, test=ARGS.test)

@@ -4,6 +4,7 @@ import torch
 import torchvision.models as tmodels
 from torchvision import transforms as T
 from sklearn.preprocessing import OneHotEncoder
+from torch.nn import functional as F
 
 class Stats:
 
@@ -39,12 +40,8 @@ class History:
         self.alfa   = alfa
 
         self.onehot_encoder = OneHotEncoder(sparse=False, categories='auto')
-        self.onehot_encoder.fit(np.array (range(9)).reshape(-1, 1))
-        
-
+        self.onehot_encoder.fit(np.array (range(self.num_action)).reshape(-1, 1))
         self._init_features()
-        
-
 
     def _init_features(self):
         self.features = tmodels.squeezenet1_1(pretrained=True).eval().features 
@@ -62,8 +59,13 @@ class History:
         self.bbox  = [int(self.shape[0] * 0.33), int(self.shape[0] * 0.66), 
                       int(self.shape[1] * 0.33), int(self.shape[1] * 0.66)] 
         iou = self.stats.get_IOU(self.target, self.bbox)
+
+        hot_action = self.onehot_encoder.transform([[5]])[0]
+        features = self.get_features()
+        all_feat = np.concatenate((hot_action, features),axis=0)
+
         for _ in range(self.MAX):
-            self.cont_states.append([5, iou]) # TODO
+            self.cont_states.append(all_feat)
         self.num_insertions = 0
         
     def ensure_bbox(self):
@@ -129,7 +131,7 @@ class History:
         features = self.get_features()
         all_feat = np.concatenate((hot_action, features),axis=0)
 
-        self.cont_states.append([all_feat])
+        self.cont_states.append(all_feat)
 
         self.num_insertions += 1
         

@@ -10,12 +10,14 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchvision.models as tmodels
 
+#device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cpu')
 
 class MixNet(nn.Module):
     """Based on Active Object Localization with Deep Reinforcement Learning
        With squeezenet1_1
     """
-    def __init__(self, input_shape=(224, 224), actions):
+    def __init__(self, input_shape=(224, 224), actions=9):
         super(MixNet, self).__init__()
         
         self.features = tmodels.squeezenet1_1(pretrained=True).features 
