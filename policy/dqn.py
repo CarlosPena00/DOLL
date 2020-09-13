@@ -19,7 +19,8 @@ random.seed(42)
 # Hyperparameters
 learning_rate = 0.0005
 gamma = 0.94  # 0.9
-buffer_limit = 5_000
+
+buffer_limit = 500
 batch_size = 32
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -159,7 +160,7 @@ def main(load_model=False, test=False):
             agent.load()
 
         elapsed_steps = 0
-        for n_epi in range(2000):
+        for n_epi in range(20000):
             state = env.reset()
             done = False
             epi_steps = 0
@@ -186,10 +187,10 @@ def main(load_model=False, test=False):
                 agent.save(n_epi)
                 
 
-            if not test and not env.broken:
+            if not test:
                 IOU   = env.history.hist_iou[-1]
                 N_ins = env.history.num_insertions
-                print(f"{n_epi:03d}| Score:{score:0.3f} | IOU: {IOU:0.3f} | N: {N_ins:03d}")
+                print(f"{n_epi:03d}| Score:{score: 0.3f} | IOU: {IOU:0.3f} | N: {N_ins:03d}")
                 wandb.log({'Rewards/total': score,
                            'Loss/epsilon': agent.epsilon,
                            'Rewards/IOU': IOU,
