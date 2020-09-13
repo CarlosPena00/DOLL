@@ -18,8 +18,6 @@ from . import History
 BIN_PATH = '/'.join(os.path.abspath(__file__).split('/')
                     [:-1]) + '/bin/'
 
-
-w_grad_ball_potential = (0.08, 1)
 # Active Object Localization with Deep Reinforcement Learning
 class Ol2015_Env(gym.Env):
 
@@ -33,7 +31,6 @@ class Ol2015_Env(gym.Env):
         self.do_render    = render
         self.history      = History(history_size)
         self.history_size = history_size
-        self.time_limit   = (5 * 60 * 1000) #Change
         self.is_discrete  = is_discrete
         
         self.done   = False

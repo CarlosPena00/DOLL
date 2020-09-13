@@ -137,7 +137,6 @@ class History:
         all_feat = np.concatenate((hot_action, features),axis=0)
 
         self.cont_states.append(all_feat)
-
         self.num_insertions += 1
         
         
