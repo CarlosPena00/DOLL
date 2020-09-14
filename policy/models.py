@@ -60,7 +60,7 @@ class ConvQnet(nn.Module):
         self.fc = nn.Linear(512, n_actions)
         
     def forward(self, x):
-        x = x.float() / 255
+        x = x.float() 
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))

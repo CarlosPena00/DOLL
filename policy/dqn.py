@@ -18,9 +18,9 @@ from models import Qnet, ConvQnet, device
 random.seed(42)
 # Hyperparameters
 learning_rate = 0.0005
-gamma = 0.94  # 0.9
+gamma = 0.98  # 0.9
 
-buffer_limit = 500
+buffer_limit = 500_000
 batch_size = 32
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -53,7 +53,7 @@ class ReplayBuffer():
 
 
 class Agent:
-    def __init__(self, num_input, actions, exp_name='zero', 
+    def __init__(self, num_input, actions, exp_name='zero_mod', 
                  save_interval=100, update_interval=10, is_test=False):
 
         self.num_input       = num_input
@@ -106,7 +106,8 @@ class Agent:
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
             'lr': learning_rate,
-            'gamma': gamma
+            'gamma': gamma,
+            'buffer_limit':buffer_limit
             }
 
         torch.save(save_dict, folder_path + 'DQN_best.pt')
@@ -160,7 +161,7 @@ def main(load_model=False, test=False):
             agent.load()
 
         elapsed_steps = 0
-        for n_epi in range(20000):
+        for n_epi in range(200000):
             state = env.reset()
             done = False
             epi_steps = 0
