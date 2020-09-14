@@ -17,7 +17,25 @@ class Stats:
         
         iou = (view==2).sum() / (view>=1).sum()
         return iou
-        
+    
+
+def forward_feat(self, x):
+    x = self.conv1(x)
+    x = self.bn1(x)
+    x = self.relu(x)
+    x = self.maxpool(x)
+
+    x = self.layer1(x)
+    x = self.layer2(x)
+    x = self.layer3(x)
+    x = self.layer4(x)
+
+    x = self.avgpool(x)
+    x = torch.flatten(x, 1)
+
+    return x
+
+ 
 class History:
     def __init__(self, MAX, alfa=0.2, image_size=(224, 224), num_action=9):
         
@@ -39,9 +57,21 @@ class History:
 
         self.onehot_encoder = OneHotEncoder(sparse=False, categories='auto')
         self.onehot_encoder.fit(np.array (range(self.num_action)).reshape(-1, 1))
-        self._init_features()
+        self._init_features_resnet()
+        
 
-    def _init_features(self):
+    def _init_features_resnet(self):
+        self.features = tmodels.resnet18(pretrained=True)
+        
+        setattr(self.features, 'forward_feat', forward_feat)
+        
+        for para in self.features.parameters():
+            para.requires_grad = False
+        ones_in = torch.ones((1, 3)+self.image_size)
+        state_shape = self.features.forward_feat(self.features, ones_in).reshape(-1).shape.numel()
+        self.state_shape = state_shape + self.num_action
+
+    def _init_features_squeeze(self):
         self.features = tmodels.squeezenet1_1(pretrained=True).eval().features 
         for para in self.features.parameters():
             para.requires_grad = False
@@ -123,7 +153,7 @@ class History:
         roi = self.input[:, :, self.bbox[0]:self.bbox[1], self.bbox[2]:self.bbox[3]]
         roi = F.interpolate(roi, size=self.image_size[0])
         with torch.no_grad():
-            features = self.features(roi)
+            features = self.features.forward_feat(self.features, roi)
             
             return features.reshape(-1).cpu().numpy()
 

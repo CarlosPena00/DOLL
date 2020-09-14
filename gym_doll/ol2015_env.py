@@ -113,12 +113,16 @@ class Ol2015_Env(gym.Env):
     def compute_rewards(self):
         
         self.r_iou   = self.history.hist_iou[-1] - self.history.hist_iou[-2]
-        self.r_steps = self.history.num_insertions * (0.001)
-        return self.r_iou - self.r_steps
+        self.r_steps = self.history.num_insertions * (0.0001)
+
+        ## Note
+        big_iou = 3 if (self.history.hist_iou[-1] > 0.6) else -3
+        
+        return big_iou + self.r_iou - self.r_steps
 
     def step(self, action):
         # right, left, up, down, bigger, smalller, fatter, taller , trigger
-
+        
         self.done = (action == 8)
         
         state  = self._receive_state(action)
