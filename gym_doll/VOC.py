@@ -130,7 +130,7 @@ class VOCDetection(VisionDataset):
 
         self.images = [os.path.join(image_dir, x + ".jpg") for x in file_names]
         self.annotations = [os.path.join(annotation_dir, x + ".xml") for x in file_names]
-        #self.images, self.annotations = self.filter_img(self.images, self.annotations)
+        self.images, self.annotations = self.filter_img(self.images, self.annotations)
         assert (len(self.images) == len(self.annotations))
 
     def __getitem__(self, index):
@@ -165,7 +165,8 @@ class VOCDetection(VisionDataset):
         
         
     def check_cat(self, target):
-        return target['annotation']['object'][0]['name'] == 'cat' 
+        return target['annotation']['object'][0]['name'] == 'cat' \
+                and len(target['annotation']['object']) == 1
         
 
     def parse_voc_xml(self, node):
@@ -207,7 +208,10 @@ class Compose():
             img, labels = t(img, labels)
         return img, labels
 
-
+inv_normalize = transforms.Normalize(
+   mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225],
+   std=[1/0.229, 1/0.224, 1/0.225]
+)
 
 class ToTensor():
     def __init__(self):
