@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore")
+
 import os
 import socket
 import struct
@@ -9,11 +12,13 @@ import gym
 import numpy as np
 from gym.spaces import Box, Discrete
 
+import cv2
 import torch
 
 import random
 from . import VOC
-from . import History
+from . import History, Stats
+from matplotlib import pyplot as plt 
 
 BIN_PATH = '/'.join(os.path.abspath(__file__).split('/')
                     [:-1]) + '/bin/'
@@ -59,6 +64,11 @@ class Ol2015_Env(gym.Env):
         dataset          = VOC.VOCDetection(r'Datasets/', transforms=transforms_set)
         self.data_loader = torch.utils.data.DataLoader(dataset, batch_size=1,
                                                     shuffle=True, num_workers=0)
+
+        #Render
+        plt.figure(0)
+        self.ax1 = plt.subplot(1,2,1)
+        self.ax2 = plt.subplot(1,2,2)
 
     def start_agents(self):
         pass
@@ -110,28 +120,50 @@ class Ol2015_Env(gym.Env):
         else:
             return value
 
-    def compute_rewards(self):
+    def compute_rewards(self, done=False, use_steps_reward=False):
+        #Note: The original reward is with use_steps_reward=False
         
-        self.r_iou   = self.history.hist_iou[-1] - self.history.hist_iou[-2]
-        self.r_steps = self.history.num_insertions * (0.0001)
+        h_iou   = self.history.hist_iou[-1] - self.history.hist_iou[-2]
+        self.h_iou = 1 if h_iou > 0 else -1
 
-        ## Note
+        self.r_steps = self.history.num_insertions * (0.0001)  \
+                            if use_steps_reward else 0.0
+
+        if done:
         big_iou = 3 if (self.history.hist_iou[-1] > 0.6) else -3
+            return big_iou - self.r_steps
         
-        return big_iou + self.r_iou - self.r_steps
+        return self.r_iou - self.r_steps
 
     def step(self, action):
         # right, left, up, down, bigger, smalller, fatter, taller , trigger
         
+        
         self.done = (action == 8)
+        if self.done and self.do_render:
+            self.render()
         
         state  = self._receive_state(action)
-        reward = self.compute_rewards()
+        reward = self.compute_rewards(self.done)
         
         return state, reward, self.done, self.history
 
-    def render(self, mode='human'):
-        pass
+    def render(self):
+
+        self.draw = VOC.inv_normalize(self.input[0]).cpu().numpy().transpose(1,2,0).clip(0, 255).astype(np.uint8)
+        self.dtarget = ((self.target[0] >= 1) * 255).cpu().numpy().clip(0, 255).astype(np.uint8)
+
+        bbox = self.history.bbox   
+        
+        rect = cv2.rectangle(self.draw.copy(), (bbox[2], bbox[0]), (bbox[3], bbox[1]), (255,0,0), 2)
+
+        self.ax1.imshow(rect )
+        self.ax1.title.set_text(self.history.hist_iou[-1])
+        rect = cv2.rectangle(self.dtarget.copy(), (bbox[2], bbox[0]), (bbox[3], bbox[1]), (180), 2)
+        self.ax2.imshow( rect, vmax=255, vmin=0)
+
+        plt.draw()
+        plt.pause(0.001)
 
     def close(self):
         self.stop()
