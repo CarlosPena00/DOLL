@@ -5,6 +5,8 @@ import torchvision.models as tmodels
 from torchvision import transforms as T
 from sklearn.preprocessing import OneHotEncoder
 from torch.nn import functional as F
+from matplotlib import pyplot as plt 
+
 
 class Stats:
 
@@ -84,8 +86,8 @@ class History:
         self.target = target
         self.shape = self.input.shape[2:]
         
-        self.bbox  = [int(self.shape[0] * 0.33), int(self.shape[0] * 0.66), 
-                      int(self.shape[1] * 0.33), int(self.shape[1] * 0.66)] 
+        self.bbox  = [int(self.shape[0] * 0.1), int(self.shape[0] * 0.9), 
+                      int(self.shape[1] * 0.1), int(self.shape[1] * 0.9)] 
         iou = self.stats.get_IOU(self.target, self.bbox)
 
         hot_action = self.onehot_encoder.transform([[5]])[0]
@@ -154,6 +156,7 @@ class History:
         roi = F.interpolate(roi, size=self.image_size[0])
         with torch.no_grad():
             features = self.features.forward_feat(self.features, roi)
+            #features = self.features.forward(roi)
             
             return features.reshape(-1).cpu().numpy()
 
