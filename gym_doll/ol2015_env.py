@@ -123,14 +123,14 @@ class Ol2015_Env(gym.Env):
     def compute_rewards(self, done=False, use_steps_reward=False):
         #Note: The original reward is with use_steps_reward=False
         
-        h_iou   = self.history.hist_iou[-1] - self.history.hist_iou[-2]
-        self.h_iou = 1 if h_iou > 0 else -1
+        diff_iou   = self.history.hist_iou[-1] - self.history.hist_iou[-2]
+        self.r_iou = 1 if diff_iou > 0 else -1
 
         self.r_steps = self.history.num_insertions * (0.0001)  \
                             if use_steps_reward else 0.0
 
         if done:
-        big_iou = 3 if (self.history.hist_iou[-1] > 0.6) else -3
+            big_iou = 3 if (self.history.hist_iou[-1] > 0.5) else -3
             return big_iou - self.r_steps
         
         return self.r_iou - self.r_steps
@@ -153,9 +153,10 @@ class Ol2015_Env(gym.Env):
         self.draw = VOC.inv_normalize(self.input[0]).cpu().numpy().transpose(1,2,0).clip(0, 255).astype(np.uint8)
         self.dtarget = ((self.target[0] >= 1) * 255).cpu().numpy().clip(0, 255).astype(np.uint8)
 
-        bbox = self.history.bbox   
+        bbox, obbox = self.history.bbox, self.history.hist_bbox[-2]
         
-        rect = cv2.rectangle(self.draw.copy(), (bbox[2], bbox[0]), (bbox[3], bbox[1]), (255,0,0), 2)
+        rect = cv2.rectangle(self.draw.copy(), (obbox[2], obbox[0]), (obbox[3], obbox[1]), (127,0,255), 3)
+        rect = cv2.rectangle(rect, (bbox[2], bbox[0]), (bbox[3], bbox[1]), (255,0,0), 3)
 
         self.ax1.imshow(rect )
         self.ax1.title.set_text(self.history.hist_iou[-1])

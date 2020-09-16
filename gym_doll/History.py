@@ -39,14 +39,17 @@ def forward_feat(self, x):
 
  
 class History:
-    def __init__(self, MAX, alfa=0.2, image_size=(224, 224), num_action=9):
+    def __init__(self, MAX, alfa=0.2, image_size=(224, 224), num_action=9, action_per_state=10):
         
+        self.action_per_state = action_per_state
         self.image_size  = image_size
         self.MAX         = MAX
         self.num_action  = num_action
         self.cont_states = collections.deque(maxlen=MAX)
         self.disc_states = collections.deque(maxlen=MAX)
         self.hist_iou    = collections.deque(maxlen=MAX)
+        self.hist_bbox   = collections.deque(maxlen=MAX+1)
+        self.hist_hact   = collections.deque(maxlen=self.action_per_state)
         
         self.num_insertions = 0
         self.time   = 0
@@ -71,7 +74,7 @@ class History:
             para.requires_grad = False
         ones_in = torch.ones((1, 3)+self.image_size)
         state_shape = self.features.forward_feat(self.features, ones_in).reshape(-1).shape.numel()
-        self.state_shape = state_shape + self.num_action
+        self.state_shape = state_shape + (self.num_action * self.action_per_state)
 
     def _init_features_squeeze(self):
         self.features = tmodels.squeezenet1_1(pretrained=True).eval().features 
@@ -79,7 +82,7 @@ class History:
             para.requires_grad = False
         ones_in = torch.ones((1, 3)+self.image_size)
         state_shape = self.features(ones_in).reshape(-1).shape.numel()
-        self.state_shape = state_shape + self.num_action
+        self.state_shape = state_shape + (self.num_action * self.action_per_state)
 
     def start(self, input, target):
         self.input = input
@@ -90,9 +93,12 @@ class History:
                       int(self.shape[1] * 0.1), int(self.shape[1] * 0.9)] 
         iou = self.stats.get_IOU(self.target, self.bbox)
 
-        hot_action = self.onehot_encoder.transform([[5]])[0]
+        hot_action = np.zeros([self.num_action * self.action_per_state])
         features = self.get_features()
         all_feat = np.concatenate((hot_action, features),axis=0)
+
+        for _ in range(self.action_per_state):
+            self.hist_hact.append( np.zeros(self.num_action) )
 
         for _ in range(self.MAX):
             self.cont_states.append(all_feat)
@@ -162,13 +168,18 @@ class History:
 
     def update(self, action):
         
-        self.change_bbox(action)
+        if not self.change_bbox(action):
+            self.hist_bbox.append(self.bbox.copy())
+            
         iou = self.stats.get_IOU(self.target, self.bbox)
         self.hist_iou.append(iou)
         hot_action = self.onehot_encoder.transform([[action]])[0]
-        features = self.get_features()
-        all_feat = np.concatenate((hot_action, features),axis=0)
+        self.hist_hact.append(hot_action)
 
+        features = self.get_features()
+        hact = np.array(self.hist_hact)[-self.action_per_state:].ravel()
+
+        all_feat = np.concatenate((hact, features),axis=0)
         self.cont_states.append(all_feat)
         self.num_insertions += 1
         
