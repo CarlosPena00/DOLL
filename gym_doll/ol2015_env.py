@@ -150,7 +150,7 @@ class Ol2015_Env(gym.Env):
 
     def render(self):
 
-        self.draw = VOC.inv_normalize(self.input[0]).cpu().numpy().transpose(1,2,0).clip(0, 255).astype(np.uint8)
+        self.draw = (VOC.inv_normalize(self.input[0])*255).cpu().numpy().transpose(1,2,0).clip(0, 255).astype(np.uint8)
         self.dtarget = ((self.target[0] >= 1) * 255).cpu().numpy().clip(0, 255).astype(np.uint8)
 
         bbox, obbox = self.history.bbox, self.history.hist_bbox[-2]

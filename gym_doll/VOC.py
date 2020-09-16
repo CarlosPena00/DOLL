@@ -221,7 +221,7 @@ class ToTensor():
     
     def __call__(self, src, label):
         src = src.transpose(2, 0, 1)
-        src = torch.Tensor(src)
+        src = torch.Tensor(src) / 255.0
         src = self.normalize(src)
         return torch.Tensor(src), (label)
 

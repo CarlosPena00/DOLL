@@ -191,7 +191,7 @@ def main(load_model=False, test=False):
             if not test:
                 IOU   = env.history.hist_iou[-1]
                 N_ins = env.history.num_insertions
-                print(f"{n_epi:03d}| Score:{score: 0.3f} | IOU: {IOU:0.3f} | N: {N_ins:03d}")
+                print(f"{n_epi:03d}| Score:{score: 3.2f} | IOU: {IOU:0.3f} | N: {N_ins:03d} | Epsilon: {agent.epsilon:0.3f}")
                 wandb.log({'Rewards/total': score,
                            'Loss/epsilon': agent.epsilon,
                            'Rewards/IOU': IOU,
