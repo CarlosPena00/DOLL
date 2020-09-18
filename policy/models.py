@@ -51,25 +51,30 @@ class MixNet(nn.Module):
 
     
 class ConvQnet(nn.Module):
-    def __init__(self, in_channels=4, n_actions=14):
-        super(DQN, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=8, stride=4)
+    def __init__(self, num_input, actions=9, extra=0):
+        super(ConvQnet, self).__init__()
+
+        self.in_channels = num_input // (224 * 224)
+        self.actions = actions
+        self.conv1 = nn.Conv2d(self.in_channels, 32, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
-        self.fc4 = nn.Linear(7 * 7 * 64, 512)
-        self.fc = nn.Linear(512, n_actions)
+        self.fc4   = nn.Linear(36864 + extra, 512)
+        self.fc    = nn.Linear(512, actions)
         
     def forward(self, x):
-        x = x.float() 
+        x = x.reshape(-1, self.in_channels, 224, 224)
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
-        x = F.relu(self.fc4(x.view(x.size(0), -1)))
+        x = x.view(-1, 36864)
+        
+        #x = torch.cat((hist.unsqueeze(0), x), dim=1)
+        x = F.relu(self.fc4(x))
         return self.fc(x)
     
     def sample_action(self, obs, epsilon):
         obs = torch.from_numpy(obs).float().to(device)
-        obs = obs.view(1, self.num_input)
         out = self.forward(obs)
         coin = random.random()
         if coin < epsilon:

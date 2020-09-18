@@ -37,10 +37,21 @@ def forward_feat(self, x):
 
     return x
 
+class FakeModel():
+    def __init__(self):
+        pass
+    def __call__(self, x):
+        return self.forward_feat(x)
+
+    def forward_feat(self, x):
+        return x.view(-1)
+
  
 class History:
-    def __init__(self, MAX, alfa=0.2, image_size=(224, 224), num_action=9, action_per_state=10):
-        
+    def __init__(self, MAX, alfa=0.2, image_size=(224, 224), 
+                 num_action=9, action_per_state=10, roi_as_state=True):
+
+        self.roi_as_state     = roi_as_state
         self.action_per_state = action_per_state
         self.image_size  = image_size
         self.MAX         = MAX
@@ -50,7 +61,7 @@ class History:
         self.hist_iou    = collections.deque(maxlen=MAX)
         self.hist_bbox   = collections.deque(maxlen=MAX+1)
         self.hist_hact   = collections.deque(maxlen=self.action_per_state)
-        
+
         self.num_insertions = 0
         self.time   = 0
         self.stats  = Stats()
@@ -62,8 +73,21 @@ class History:
 
         self.onehot_encoder = OneHotEncoder(sparse=False, categories='auto')
         self.onehot_encoder.fit(np.array (range(self.num_action)).reshape(-1, 1))
-        self._init_features_resnet()
         
+        if self.roi_as_state:
+            self._init_features_image()
+        else:
+            self._init_features_resnet()
+
+    def _init_features_image(self):
+        self.state_shape =  (self.image_size[0] * self.image_size[1] * 3)
+        
+    def _init_features_fake(self):
+        self.features = FakeModel
+        ones_in       = torch.ones((1, 3)+self.image_size)
+        state_shape   = self.features.forward_feat(self.features, ones_in).reshape(-1).shape.numel()
+        self.state_shape = state_shape + (self.num_action * self.action_per_state)
+
 
     def _init_features_resnet(self):
         self.features = tmodels.resnet18(pretrained=True)
@@ -84,24 +108,31 @@ class History:
         state_shape = self.features(ones_in).reshape(-1).shape.numel()
         self.state_shape = state_shape + (self.num_action * self.action_per_state)
 
-    def start(self, input, target):
-        self.input = input
-        self.target = target
-        self.shape = self.input.shape[2:]
-        
-        self.bbox  = [int(self.shape[0] * 0.1), int(self.shape[0] * 0.9), 
-                      int(self.shape[1] * 0.1), int(self.shape[1] * 0.9)] 
-        iou = self.stats.get_IOU(self.target, self.bbox)
 
-        hot_action = np.zeros([self.num_action * self.action_per_state])
-        features = self.get_features()
-        all_feat = np.concatenate((hot_action, features),axis=0)
+    def start(self, input, target):
+        self.input  = input
+        self.target = target
+        self.shape  = self.input.shape[2:]
+        self.bbox   = [int(self.shape[0] * 0.1), int(self.shape[0] * 0.9), 
+                       int(self.shape[1] * 0.1), int(self.shape[1] * 0.9)] 
+        iou         = self.stats.get_IOU(self.target, self.bbox)
+
+        #hot_action = self.onehot_encoder.transform([[5]])[0]
+        hot_action  = np.zeros([self.num_action * self.action_per_state])
+
+        features    = self.get_features()
+        
+        if self.roi_as_state:
+            all_feat = features
+        else:
+            all_feat = np.concatenate((hot_action, features),axis=0)
 
         for _ in range(self.action_per_state):
             self.hist_hact.append( np.zeros(self.num_action) )
 
         for _ in range(self.MAX):
             self.cont_states.append(all_feat)
+
         self.num_insertions = 0
         
     def ensure_bbox(self):
@@ -156,31 +187,46 @@ class History:
         self.ensure_bbox()
         return action == 8
 
+    def get_roi(self):
+        ymin = max(self.bbox[0]-8, 0)
+        xmin = max(self.bbox[2]-8, 0)
+        ymax = min(self.bbox[1]+8, self.shape[0]-1)
+        xmax = min(self.bbox[3]+8, self.shape[1]-1)
+        roi = self.input[:, :, ymin:ymax, xmin:xmax]
+        return roi
+
     def get_features(self):
         # Batch, Chanel, Height, Width
-        roi = self.input[:, :, self.bbox[0]:self.bbox[1], self.bbox[2]:self.bbox[3]]
-        roi = F.interpolate(roi, size=self.image_size[0])
         with torch.no_grad():
+            roi = self.get_roi()
+            roi = F.interpolate(roi, size=self.image_size[0])
+            
+            if self.roi_as_state:
+                return roi.reshape(-1).cpu().numpy()
+
             features = self.features.forward_feat(self.features, roi)
             #features = self.features.forward(roi)
-            
             return features.reshape(-1).cpu().numpy()
 
     def update(self, action):
-        
         if not self.change_bbox(action):
             self.hist_bbox.append(self.bbox.copy())
             
-        iou = self.stats.get_IOU(self.target, self.bbox)
-        self.hist_iou.append(iou)
+        iou        = self.stats.get_IOU(self.target, self.bbox)
         hot_action = self.onehot_encoder.transform([[action]])[0]
+        features   = self.get_features()
+
+        self.hist_iou.append(iou)
         self.hist_hact.append(hot_action)
 
-        features = self.get_features()
-        hact = np.array(self.hist_hact)[-self.action_per_state:].ravel()
+        if self.roi_as_state:
+            self.cont_states.append(features)
 
-        all_feat = np.concatenate((hact, features),axis=0)
-        self.cont_states.append(all_feat)
+        else:
+            hact = np.array(self.hist_hact)[-self.action_per_state:].ravel()
+            all_feat = np.concatenate((hact, features),axis=0)
+            self.cont_states.append(all_feat)
+
         self.num_insertions += 1
         
         

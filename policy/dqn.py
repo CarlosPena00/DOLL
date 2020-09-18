@@ -116,6 +116,8 @@ class Agent:
 
     def train(self, n_episode):
            
+        losses = []
+        for _ in range(5):
         state, action, reward, s_prime, done_mask = self.memory.sample(batch_size)
         state = state.to(device)
         action = action.to(device)
@@ -131,7 +133,8 @@ class Agent:
         q_a = q_out.gather(1, action)
         max_q_prime = self.target_model(s_prime).max(1)[0].unsqueeze(1)
         target = reward + gamma * max_q_prime * done_mask
-        loss = F.smooth_l1_loss(q_a, target) # Change for CE
+            loss = F.smooth_l1_loss(q_a, target) # Change for binary_cross_entropy
+            losses.append(loss.item())
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -139,14 +142,14 @@ class Agent:
 
         self.update_target(n_episode)
 
-        return loss.item()
+        return np.mean(losses)
 
     def update_target(self, n_episode):
         if n_episode % self.update_interval:
             self.target_model.load_state_dict(self.model.state_dict())
 
 
-def main(load_model=False, test=False):
+def main(load_model=False, test=False, use_render=False):
     try:
         if not test:
             wandb.init(name="DOLL-DQN", project="DOLL")
@@ -218,4 +221,4 @@ if __name__ == '__main__':
     if not os.path.exists('./models'):
         os.makedirs('models')
 
-    main(load_model=ARGS.load, test=ARGS.test)
+    main(load_model=ARGS.load, test=ARGS.test, use_render=ARGS.render)

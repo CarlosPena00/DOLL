@@ -101,7 +101,7 @@ class Ol2015_Env(gym.Env):
         with open(self.logger_path, 'a') as log:
             now = datetime.now()
             steps = self.history.num_insertions
-            iou = self.history.cont_states[-1][1] if steps else 0
+            iou   = self.history.hist_iou[-1] if steps else 0
             log.write(f"{iou},{steps},{now}\n")
             
     def reset(self):
@@ -120,13 +120,13 @@ class Ol2015_Env(gym.Env):
         else:
             return value
 
-    def compute_rewards(self, done=False, use_steps_reward=False):
+    def compute_rewards(self, done=False, use_steps_reward=True):
         #Note: The original reward is with use_steps_reward=False
         
         diff_iou   = self.history.hist_iou[-1] - self.history.hist_iou[-2]
         self.r_iou = 1 if diff_iou > 0 else -1
 
-        self.r_steps = self.history.num_insertions * (0.0001)  \
+        self.r_steps = self.history.num_insertions * (0.001)  \
                             if use_steps_reward else 0.0
 
         if done:
