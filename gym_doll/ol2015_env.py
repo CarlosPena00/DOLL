@@ -110,7 +110,7 @@ class Ol2015_Env(gym.Env):
 
         self.start()
         state = self._receive_state(4)
-        return np.array(state)
+        return np.array(state), self.history
 
     def bound(self, value, floor, ceil):
         if value < floor:
@@ -120,20 +120,38 @@ class Ol2015_Env(gym.Env):
         else:
             return value
 
-    def compute_rewards(self, done=False, use_steps_reward=True):
+    def compute_rewards(self, done=False, use_steps_reward=True, verbose=False):
         #Note: The original reward is with use_steps_reward=False
         
         diff_iou   = self.history.hist_iou[-1] - self.history.hist_iou[-2]
-        self.r_iou = 1 if diff_iou > 0 else -1
+        self.r_iou = 1 if diff_iou > 0 else -1 if diff_iou < 0 else 0
 
-        self.r_steps = self.history.num_insertions * (0.001)  \
+        self.r_steps = self.history.num_insertions * (0.04)  \
                             if use_steps_reward else 0.0
 
         if done:
             big_iou = 3 if (self.history.hist_iou[-1] > 0.5) else -3
             return big_iou - self.r_steps
         
+        if verbose:
+            print(f"Riou {self.r_iou} | Rstep {self.r_steps}")
+        
         return self.r_iou - self.r_steps
+
+    def step2(self, action):
+        # right, left, up, down, bigger, smalller, fatter, taller , trigger
+        self.done = False
+        while not self.done:
+            self.history.get_good_actions()
+            action = input()
+            if action.isnumeric(): action = int(action)
+            else: continue
+     
+            self.done = (action == 8)
+            state  = self._receive_state(action)
+            reward = self.compute_rewards(self.done)
+            self.render()
+        return state, reward, self.done, self.history
 
     def step(self, action):
         # right, left, up, down, bigger, smalller, fatter, taller , trigger

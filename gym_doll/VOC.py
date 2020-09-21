@@ -225,6 +225,19 @@ class ToTensor():
         src = self.normalize(src)
         return torch.Tensor(src), (label)
 
+class ToNorm():
+    def __init__(self):
+        self.normalize = transforms.Normalize(
+                            mean=[0.485, 0.456, 0.406],
+                            std=[0.229, 0.224, 0.225])  
+    
+    def __call__(self, src, label):
+        src = src.transpose(2, 0, 1)
+        src = torch.Tensor(src) / 255.0
+        src = self.normalize(src)
+        return src, label
+
+
 class ConvertLabel():
     def __call__(self, src, label):
         target = []

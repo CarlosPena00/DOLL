@@ -76,12 +76,21 @@ class Agent:
             self.epsilon = 0.01
         else:
             self.epsilon = 0.01 + (0.99 - 0.01) * \
-                    np.exp(-1. * elapsed_steps / 30000)
+                    np.exp(-1. * elapsed_steps / 10_000)
 
 
-    def sample_action(self, state, elapsed_steps):
+    def sample_action(self, state, elapsed_steps, n_epi, epi_steps, history):
         self.update_epsilon(elapsed_steps)
-        return self.model.sample_action(state, self.epsilon)
+        if n_epi < 1000:
+            pos_action = history.get_good_actions()
+        else:
+            pos_action = []
+        force_stop = False
+        if epi_steps > 200:
+            force_stop = True
+
+
+        return self.model.sample_action(state, self.epsilon, pos_action, force_stop)
         
     def append(self, state, action, reward, s_prime, done_mask):
         self.memory.append((state, action, reward, s_prime, done_mask))
@@ -117,7 +126,7 @@ class Agent:
     def train(self, n_episode):
            
         losses = []
-        for _ in range(5):
+        for _ in range(2):
         state, action, reward, s_prime, done_mask = self.memory.sample(batch_size)
         state = state.to(device)
         action = action.to(device)
@@ -165,14 +174,14 @@ def main(load_model=False, test=False, use_render=False):
 
         elapsed_steps = 0
         for n_epi in range(200000):
-            state = env.reset()
+            state, info = env.reset()
             done = False
             epi_steps = 0
             score = 0.0
 
             while not done:
 
-                action = agent.sample_action(state, elapsed_steps)
+                action = agent.sample_action(state, elapsed_steps, n_epi, epi_steps, info)
                 s_prime, reward, done, info = env.step(action)
                 done_mask = 0.0 if done else 1.0
                 agent.append(state, action, reward, s_prime, done_mask)

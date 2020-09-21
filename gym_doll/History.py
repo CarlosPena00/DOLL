@@ -37,6 +37,29 @@ def forward_feat(self, x):
 
     return x
 
+def ensure_bbox(bbox, shape):
+    
+    if bbox[1] - bbox[0] < MIM_SIZE:
+        bbox[1] += MIM_SIZE//4
+        bbox[0] -= MIM_SIZE//4
+    if bbox[3] - bbox[2] < MIM_SIZE:
+        bbox[3] += MIM_SIZE//4
+        bbox[2] -= MIM_SIZE//4
+
+
+    bbox[0] = int(max(bbox[0], 0))
+    bbox[1] = int(min(bbox[1], shape[0]-1))
+    bbox[2] = int(max(bbox[2], 0))
+    bbox[3] = int(min(bbox[3], shape[1]-1))
+    if bbox[0] == bbox[1]:
+        bbox[0] = (max(bbox[0]-1, 0))
+        bbox[1] = (min(bbox[1]+1, shape[0]-1))
+    if bbox[2] == bbox[3]:
+        bbox[2] = max(bbox[2]-1, 0)
+        bbox[3] = min(bbox[3]+1, shape[1]-1)
+
+    return bbox
+
 class FakeModel():
     def __init__(self):
         pass
@@ -49,7 +72,7 @@ class FakeModel():
  
 class History:
     def __init__(self, MAX, alfa=0.2, image_size=(224, 224), 
-                 num_action=9, action_per_state=10, roi_as_state=True):
+                 num_action=9, action_per_state=10, roi_as_state=False):
 
         self.roi_as_state     = roi_as_state
         self.action_per_state = action_per_state
@@ -58,7 +81,7 @@ class History:
         self.num_action  = num_action
         self.cont_states = collections.deque(maxlen=MAX)
         self.disc_states = collections.deque(maxlen=MAX)
-        self.hist_iou    = collections.deque(maxlen=MAX)
+        self.hist_iou    = collections.deque(maxlen=10)
         self.hist_bbox   = collections.deque(maxlen=MAX+1)
         self.hist_hact   = collections.deque(maxlen=self.action_per_state)
 
@@ -132,60 +155,71 @@ class History:
 
         for _ in range(self.MAX):
             self.cont_states.append(all_feat)
+            self.hist_iou.append(iou)
+            self.hist_bbox.append(self.bbox)
 
         self.num_insertions = 0
         
-    def ensure_bbox(self):
         
-        self.bbox[0] = int(max(self.bbox[0], 0))
-        self.bbox[1] = int(min(self.bbox[1], self.shape[0]-1))
-        self.bbox[2] = int(max(self.bbox[2], 0))
-        self.bbox[3] = int(min(self.bbox[3], self.shape[1]-1))
-        if self.bbox[0] == self.bbox[1]:
-            self.bbox[0] = (max(self.bbox[0]-1, 0))
-            self.bbox[1] = (min(self.bbox[1]+1, self.shape[0]-1))
-        if self.bbox[2] == self.bbox[3]:
-            self.bbox[2] = max(self.bbox[2]-1, 0)
-            self.bbox[3] = min(self.bbox[3]+1, self.shape[1]-1)
-                
-        
-    def change_bbox(self, action):
+    def change_bbox(self, action, true_action=True):
         # right, left, up, down, bigger, smalller, fatter, taller , trigger
-        ah = self.alfa * (self.bbox[1] - self.bbox[0])
-        aw = self.alfa * (self.bbox[3] - self.bbox[2])
+        bbox = self.bbox.copy()
+        
+        ah = self.alfa * (bbox[1] - bbox[0])
+        aw = self.alfa * (bbox[3] - bbox[2])
         
         if action == 0: # right
-            self.bbox[2] += aw
-            self.bbox[3] += aw
+            bbox[2] += aw
+            bbox[3] += aw
         elif action == 1: # left
-            self.bbox[2] -= aw
-            self.bbox[3] -= aw
+            bbox[2] -= aw
+            bbox[3] -= aw
         elif action == 2: # up
-            self.bbox[0] -= ah
-            self.bbox[1] -= ah
+            bbox[0] -= ah
+            bbox[1] -= ah
         elif action == 3: # down
-            self.bbox[0] += ah
-            self.bbox[1] += ah
+            bbox[0] += ah
+            bbox[1] += ah
         elif action == 4: # bigger
-            self.bbox[0] -= ah/2
-            self.bbox[1] += ah/2
-            self.bbox[2] -= aw/2
-            self.bbox[3] += aw/2
+            bbox[0] -= ah/2
+            bbox[1] += ah/2
+            bbox[2] -= aw/2
+            bbox[3] += aw/2
         elif action == 5: # smaller
-            self.bbox[0] += ah/2
-            self.bbox[1] -= ah/2
-            self.bbox[2] += aw/2
-            self.bbox[3] -= aw/2    
+            bbox[0] += ah/2
+            bbox[1] -= ah/2
+            bbox[2] += aw/2
+            bbox[3] -= aw/2    
         elif action == 6: # fatter
-            self.bbox[2] -= aw/2
-            self.bbox[3] += aw/2
+            bbox[2] -= aw/2
+            bbox[3] += aw/2
         elif action == 7: # taller
-            self.bbox[0] -= ah/2
-            self.bbox[1] += ah/2
+            bbox[0] -= ah/2
+            bbox[1] += ah/2
         ## Should I add more ?
 
-        self.ensure_bbox()
-        return action == 8
+        bbox = ensure_bbox(bbox, self.shape)
+        if true_action:
+            self.bbox = bbox
+
+        return (action == 8), bbox
+
+    def get_good_actions(self):
+        actual_IOU = self.hist_iou[-1]
+        good_action_list = []
+
+        if actual_IOU >= 0.6:
+            good_action_list.append(8)
+
+        #print("Baseline: ",actual_IOU)
+        for act_id in range(8):
+            done, bbox = self.change_bbox(act_id, true_action=False)
+            iou_id     = self.stats.get_IOU(self.target, bbox)
+            if iou_id >= actual_IOU:
+                good_action_list.append(act_id)
+
+        #print(good_action_list)
+        return good_action_list
 
     def get_roi(self):
         ymin = max(self.bbox[0]-8, 0)
@@ -209,7 +243,7 @@ class History:
             return features.reshape(-1).cpu().numpy()
 
     def update(self, action):
-        if not self.change_bbox(action):
+        if not self.change_bbox(action)[0]:
             self.hist_bbox.append(self.bbox.copy())
             
         iou        = self.stats.get_IOU(self.target, self.bbox)

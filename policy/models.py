@@ -88,8 +88,8 @@ class Qnet(nn.Module):
         super(Qnet, self).__init__()
         self.actions = actions
         self.num_input = num_input
-        self.fc1 = nn.Linear(num_input, 128)
-        self.fc2 = nn.Linear(128, 128)
+        self.fc1 = nn.Linear(num_input, 512)
+        self.fc2 = nn.Linear(512, 128)
         self.fc3 = nn.Linear(128, actions)
 
     def forward(self, x):
@@ -98,12 +98,17 @@ class Qnet(nn.Module):
         x = self.fc3(x)
         return x
 
-    def sample_action(self, obs, epsilon):
+    def sample_action(self, obs, epsilon, pos_actions=[], force_stop=False):
         obs = torch.from_numpy(obs).float().to(device)
         obs = obs.view(1, self.num_input)
         out = self.forward(obs)
+        if force_stop:
+            return 8
         coin = random.random()
         if coin < epsilon:
+            if len(pos_actions):
+                return np.random.choice(pos_actions)
+
             return random.randint(0, self.actions-1)
         else:
             return out.argmax().item()
