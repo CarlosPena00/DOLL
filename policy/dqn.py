@@ -127,27 +127,27 @@ class Agent:
            
         losses = []
         for _ in range(2):
-        state, action, reward, s_prime, done_mask = self.memory.sample(batch_size)
-        state = state.to(device)
-        action = action.to(device)
-        reward = reward.to(device)
-        s_prime = s_prime.to(device)
-        done_mask = done_mask.to(device)
+            state, action, reward, s_prime, done_mask = self.memory.sample(batch_size)
+            state = state.to(device)
+            action = action.to(device)
+            reward = reward.to(device)
+            s_prime = s_prime.to(device)
+            done_mask = done_mask.to(device)
 
-        n_inputs = state.size()[1]*state.size()[2]
+            n_inputs = state.size()[1]*state.size()[2]
 
-        state = state.view(batch_size, n_inputs)
-        s_prime = s_prime.view(batch_size, n_inputs)
-        q_out = self.model(state)
-        q_a = q_out.gather(1, action)
-        max_q_prime = self.target_model(s_prime).max(1)[0].unsqueeze(1)
-        target = reward + gamma * max_q_prime * done_mask
+            state = state.view(batch_size, n_inputs)
+            s_prime = s_prime.view(batch_size, n_inputs)
+            q_out = self.model(state)
+            q_a = q_out.gather(1, action)
+            max_q_prime = self.target_model(s_prime).max(1)[0].unsqueeze(1)
+            target = reward + gamma * max_q_prime * done_mask
             loss = F.smooth_l1_loss(q_a, target) # Change for binary_cross_entropy
             losses.append(loss.item())
 
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
 
         self.update_target(n_episode)
 
