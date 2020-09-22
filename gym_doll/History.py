@@ -7,6 +7,7 @@ from sklearn.preprocessing import OneHotEncoder
 from torch.nn import functional as F
 from matplotlib import pyplot as plt 
 
+MIM_SIZE = 24
 
 class Stats:
 
