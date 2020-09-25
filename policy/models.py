@@ -112,3 +112,29 @@ class Qnet(nn.Module):
             return random.randint(0, self.actions-1)
         else:
             return out.argmax().item()
+
+class ConvNet(nn.Module):
+    def __init__(self):
+        super(ConvNet, self).__init__()
+
+        self.conv1 = nn.Conv2d(3, 96, kernel_size=7, stride=2)
+        self.maxpoll1 = nn.MaxPool2d(3, stride=2)
+        self.conv2 = nn.Conv2d(96, 256, kernel_size=5, stride=2)
+        self.maxpoll2 = nn.MaxPool2d(3, stride=2)
+        self.conv3 = nn.Conv2d(256, 384, kernel_size=3, stride=1)
+        self.conv4 = nn.Conv2d(384, 384, kernel_size=3, stride=1)
+        self.conv5 = nn.Conv2d(384, 256, kernel_size=3, stride=1)
+        self.maxpoll3 = nn.MaxPool2d(3, stride=2)
+        # self.fc4   = nn.Linear(36864 + extra, 512)
+        # self.fc    = nn.Linear(512, actions)
+        
+    def forward(self, x):
+        x = x.reshape(-1, 3, 224, 224)
+        x = self.conv1(x)
+        x = self.maxpoll1(x)
+        x = self.conv2(x)
+        x = self.maxpoll2(x)
+        x = self.conv3(x)
+        x = self.conv4(x)
+        x = self.conv5(x)
+        x = self.maxpoll2(x)
