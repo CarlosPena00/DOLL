@@ -5,7 +5,9 @@ import torchvision.models as tmodels
 from torchvision import transforms as T
 from sklearn.preprocessing import OneHotEncoder
 from torch.nn import functional as F
-from matplotlib import pyplot as plt 
+from torch.hub import load_state_dict_from_url
+from matplotlib import pyplot as plt
+from policy.models import AlexNet
 
 MIM_SIZE = 24
 
@@ -101,7 +103,8 @@ class History:
         if self.roi_as_state:
             self._init_features_image()
         else:
-            self._init_features_resnet()
+            # self._init_features_resnet()
+            self._init_features_alexnet()
 
     def _init_features_image(self):
         self.state_shape =  (self.image_size[0] * self.image_size[1] * 3)
@@ -126,6 +129,21 @@ class History:
 
     def _init_features_squeeze(self):
         self.features = tmodels.squeezenet1_1(pretrained=True).eval().features 
+        for para in self.features.parameters():
+            para.requires_grad = False
+        ones_in = torch.ones((1, 3)+self.image_size)
+        state_shape = self.features(ones_in).reshape(-1).shape.numel()
+        self.state_shape = state_shape + (self.num_action * self.action_per_state)
+
+    def _init_features_alexnet(self):
+        self.features = AlexNet().eval()
+        state_dict = load_state_dict_from_url('https://download.pytorch.org/models/alexnet-owt-4df8aa71.pth',
+                                              progress=True)
+        model_dict = self.features.state_dict()
+
+        state_dict = {k: v for k, v in state_dict.items() if k in model_dict}
+        model_dict.update(state_dict) 
+        self.features.load_state_dict(state_dict)
         for para in self.features.parameters():
             para.requires_grad = False
         ones_in = torch.ones((1, 3)+self.image_size)
