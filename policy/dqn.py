@@ -20,7 +20,7 @@ random.seed(42)
 learning_rate = 0.0005
 gamma = 0.98  # 0.9
 
-buffer_limit = 500_000
+buffer_limit = 500
 batch_size = 32
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -53,7 +53,7 @@ class ReplayBuffer():
 
 
 class Agent:
-    def __init__(self, num_input, actions, exp_name='zero_mod', 
+    def __init__(self, num_input, actions, exp_name='squeeze', 
                  save_interval=100, update_interval=10, is_test=False):
 
         self.num_input       = num_input
@@ -76,12 +76,12 @@ class Agent:
             self.epsilon = 0.01
         else:
             self.epsilon = 0.01 + (0.99 - 0.01) * \
-                    np.exp(-1. * elapsed_steps / 10_000)
+                    np.exp(-1. * elapsed_steps / 5_000)
 
 
     def sample_action(self, state, elapsed_steps, n_epi, epi_steps, history):
         self.update_epsilon(elapsed_steps)
-        if n_epi < 1000:
+        if n_epi < 500:
             pos_action = history.get_good_actions()
         else:
             pos_action = []
@@ -161,7 +161,7 @@ class Agent:
 def main(load_model=False, test=False, use_render=False):
     try:
         if not test:
-            wandb.init(name="DOLL-DQN", project="DOLL")
+            wandb.init(name="DOLL-DQN-squeeze", project="DOLL")
         env      = gym.make('DOLL-v0')
         n_inputs = env.observation_space.shape[0] * \
             env.observation_space.shape[1]

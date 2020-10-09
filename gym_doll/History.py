@@ -104,7 +104,8 @@ class History:
             self._init_features_image()
         else:
             # self._init_features_resnet()
-            self._init_features_alexnet()
+            #self._init_features_alexnet()
+            self._init_features_squeeze()
 
     def _init_features_image(self):
         self.state_shape =  (self.image_size[0] * self.image_size[1] * 3)
@@ -257,8 +258,8 @@ class History:
             if self.roi_as_state:
                 return roi.reshape(-1).cpu().numpy()
 
-            features = self.features.forward_feat(self.features, roi)
-            #features = self.features.forward(roi)
+            #features = self.features.forward_feat(self.features, roi)
+            features = self.features.forward(roi)
             return features.reshape(-1).cpu().numpy()
 
     def update(self, action):
